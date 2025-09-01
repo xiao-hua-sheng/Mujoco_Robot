@@ -7,7 +7,7 @@ from agent.agent import PPOAgent
 
 if __name__ == "__main__":
     env_name = "Humanoid-v5"
-    load_path = "model/humanoid_ppo_4w_old.pth"
+    load_path = "model/humanoid_ppo_1w.pth"
 
     env = gym.make(env_name, render_mode='human')
     state_dim = env.observation_space.shape[0]

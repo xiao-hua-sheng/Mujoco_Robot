@@ -1,0 +1,49 @@
+# 环境配置
+environment:
+  name: Pusher-v5  # 环境名称
+  render_mode: human  # 渲染模式
+  max_episode_steps: 500  # 每个episode最大步数
+  seed: 42  # 环境随机种子
+  agent_network:
+    policy_hdim: [128, 128, 64]
+    v_hdim: [128, 128, 64]
+    activation: tanh  # 激活函数
+
+# 算法参数
+algorithm:
+  name: PPO  # 算法名称
+  learning_rate: 0.0001  # 学习率
+  gamma: 0.99  # 折扣因子
+  clip_epsilon: 0.2
+  entropy_coef: 0.001
+  original_coef: 0.1
+  max_steps: 200
+
+  reward_params:
+    height_coef: 0.15
+    energy_coef: 0.01
+    survive_bonus: 0.3
+    target_height: 1.4
+
+
+# 训练参数
+training:
+  max_episodes: 100000 # 总训练步数
+  batch_size: 64
+  log_interval: 10  # 日志记录间隔
+  save_interval: 100  # 模型保存间隔
+  eval_interval: 50  # 评估间隔
+  n_eval_episodes: 10  # 每次评估使用的episode数
+  output_dir: models
+  pre_model_path:
+#  pre_model_path: models/humanoid_ppo_5w_old.pth
+
+# 回放缓冲区
+replay_buffer:
+  buffer_size: 100000
+  batch_size: 128
+
+# 设备设置
+device:
+  use_gpu: true
+  device_id: 0

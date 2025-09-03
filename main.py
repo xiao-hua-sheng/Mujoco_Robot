@@ -10,42 +10,48 @@ from algorithm.ppo import PPO
 from reward.reward import HumanoidReward
 from algorithm.replay_buffer import ExperienceReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
+from tool.config import ConfigLoader
 
 
 class PPOTrainer:
-    def __init__(self, env_name: str = "Humanoid-v5", config: dict = None, load_path: str = ""):
+    def __init__(self, configs: dict):
         # 初始化环境
         self.render = False
         self.reward_source = True
-        self.env_name = env_name
-        self.save_path = "model"
+        self.env_name = configs["environment"]["name"]
+        self.pre_model_path = configs["training"]["pre_model_path"]
+        self.save_path = configs["training"]["output_dir"]
         if self.render:
-            self.env = gym.make(env_name, render_mode='human')
+            self.env = gym.make(self.env_name, render_mode='human')
         else:
-            self.env = gym.make(env_name)
+            self.env = gym.make(self.env_name)
         self.state_dim = self.env.observation_space.shape[0]
         self.action_dim = self.env.action_space.shape[0]
+        self.agent_network = configs["environment"]["agent_network"]
 
         # 初始化组件
-        self.agent = PPOAgent(self.state_dim, self.action_dim)
-        if load_path:
-            checkpoint = torch.load(load_path)
+        self.agent = PPOAgent(self.state_dim, self.action_dim, hidden_dim=self.agent_network)
+        if self.pre_model_path:
+            checkpoint = torch.load(self.pre_model_path)
             self.agent.load_state_dict(checkpoint)
         self.ppo = PPO(
             agent=self.agent,
-            gamma=config.get('gamma', 0.99),
-            clip_epsilon=config.get('clip_epsilon', 0.2),
-            entropy_coef=config.get('entropy_coef', 0.01)
+            gamma=configs["algorithm"].get('gamma', 0.99),
+            clip_epsilon=configs["algorithm"].get('clip_epsilon', 0.2),
+            entropy_coef=configs["algorithm"].get('entropy_coef', 0.01),
+            lr=configs["algorithm"].get('learning_rate', 1e-4)
         )
-        self.reward_calculator = HumanoidReward(**config.get('reward_params', {}))
+        self.reward_calculator = HumanoidReward(**configs['algorithm'].get('reward_params', {}))
 
         # 训练参数
-        self.max_episodes = config.get('max_episodes', 1000)
-        self.max_steps = config.get('max_steps', 2000)
-        self.update_interval = config.get('update_interval', 4800)
-        self.batch_size = 64
+        self.max_episodes = configs["training"].get('max_episodes', 1000)
+        self.max_steps = configs["algorithm"].get('max_steps', 2000)
+        self.update_interval = configs["algorithm"].get('update_interval', 4800)
+        self.batch_size = configs['training']['batch_size']
 
-        self.replay_buff = ExperienceReplayBuffer(max_size=2000, batch_size=self.batch_size)
+        self.buffer_size = configs['replay_buffer']['buffer_size']
+
+        self.replay_buff = ExperienceReplayBuffer(max_size=self.buffer_size, batch_size=self.batch_size)
         self.writer = SummaryWriter(f'runs/{self.env_name}_reward_{int(time.time())}')
 
 
@@ -106,7 +112,7 @@ class PPOTrainer:
 
             if (episode+1) % 10000 == 0:
                 # 保存模型
-                model_name = os.path.join(self.save_path, "humanoid_ppo_{}w.pth".format((episode+1) // 10000))
+                model_name = os.path.join(self.save_path, "{}_ppo_{}w.pth".format(self.env_name[:-3], (episode+1) // 10000))
                 torch.save(self.agent.state_dict(), model_name)
         self.env.close()
         self.writer.close()
@@ -115,20 +121,8 @@ class PPOTrainer:
 
 
 if __name__ == "__main__":
-    config = {
-        'gamma': 0.99,
-        'clip_epsilon': 0.2,
-        'entropy_coef': 0.001,
-        'original_coef': 0.1,
-        'max_episodes': 100000,
-        'max_steps': 200,
-        'reward_params': {
-            'height_coef': 0.15,
-            'energy_coef': 0.01,
-            'survive_bonus': 0.3,
-            'target_height': 1.4
-        }
-    }
+    config_loader = ConfigLoader("tool/config.yaml")
+    config = config_loader.load_config()
 
-    trainer = PPOTrainer(env_name="Humanoid-v5", config=config, load_path="model/humanoid_ppo_4w_old.pth")
+    trainer = PPOTrainer(configs=config)
     trainer.train()

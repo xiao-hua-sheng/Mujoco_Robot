@@ -8,14 +8,16 @@ from typing import Tuple
 class PolicyNetwork(nn.Module):
     """策略网络（Actor）"""
 
-    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int = 256):
+    def __init__(self, input_dim: int, output_dim: int, hidden_dim: list):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+            nn.Linear(input_dim, hidden_dim[0]),
             nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim[0], hidden_dim[1]),
             nn.Tanh(),
-            nn.Linear(hidden_dim, output_dim)
+            nn.Linear(hidden_dim[1], hidden_dim[2]),
+            nn.Tanh(),
+            nn.Linear(hidden_dim[2], output_dim)
         )
         self.log_std = nn.Parameter(torch.zeros(output_dim))
 
@@ -28,14 +30,16 @@ class PolicyNetwork(nn.Module):
 class ValueNetwork(nn.Module):
     """价值网络（Critic）"""
 
-    def __init__(self, input_dim: int, hidden_dim: int = 256):
+    def __init__(self, input_dim: int, hidden_dim: list):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+            nn.Linear(input_dim, hidden_dim[0]),
             nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim[0], hidden_dim[1]),
             nn.Tanh(),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim[1], hidden_dim[2]),
+            nn.Tanh(),
+            nn.Linear(hidden_dim[2], 1)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -45,10 +49,10 @@ class ValueNetwork(nn.Module):
 class PPOAgent(nn.Module):
     """PPO智能体"""
 
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 256):
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: dict):
         super().__init__()
-        self.policy = PolicyNetwork(state_dim, action_dim, hidden_dim)
-        self.value = ValueNetwork(state_dim, hidden_dim)
+        self.policy = PolicyNetwork(state_dim, action_dim, hidden_dim["policy_hdim"])
+        self.value = ValueNetwork(state_dim, hidden_dim["v_hdim"])
 
     def get_action(self, state: np.ndarray) -> Tuple[torch.Tensor, torch.Tensor]:
         state_tensor = torch.FloatTensor(state)
